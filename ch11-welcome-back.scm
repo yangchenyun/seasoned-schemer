@@ -114,3 +114,58 @@
 ;; | arguments to the function have been like so far.                           |
 ;; '----------------------------------------------------------------------------'
 
+;; NOTE: Definition of a 'tup': a list of numbers.
+;; guess the definition of `scramble':
+
+(1 1 1 3 4 2 1 1 9 2)
+;; (1 1 1 1 1 4 1 1 1 9)
+
+(1 2 3 4 5 6 7 8 9)
+;; (1 1 1 1 1 1 1 1 1)
+
+(1 2 3 1 2 3 4 1 8 2 10)
+;; (1 1 1 1 1 1 1 1 2 8 2)
+
+;; My first guess:
+;; Consumes a non-empty tup of positive integers and outputs a list of same
+;; length. The nth item of the output is determined by:
+;;   - if the nth item in origin list is 1, output 1
+;;   - if the nth item in origin list is greater than n-1th item, output 1
+;;   - if the nth item in origin list is smaller than n-1th item, use the nth
+;;     item as index into the last longest sequence form.
+(1 1 1 3 4
+   2 ;; index 2 in (1 3 4)
+   1 1 9
+   2 ;; index 2 in (1 9) ??? The definition doesn't work
+   )
+
+;; Definition in Book
+;; Consumes a non-empty tup where no number is greater than its own index. The
+;; nth value is used to as backward index in the prefix sequence (including
+;; itself) to get the nth value in output list.
+
+(define nth
+  (lambda (n lat)
+    (cond
+     ((eq? n 1) (car lat))
+     (else (nth (sub1 n) (cdr lat))))))
+
+(define scramble-with-reversed-prefix
+  (lambda (lat reversed-prefix)
+    (cond
+     ((null? lat) '())
+     (else
+      (cons (nth (car lat) (cons (car lat) reversed-prefix))
+            (scramble-with-reversed-prefix
+             (cdr lat) (cons (car lat) reversed-prefix) ))))))
+
+(define scramble
+  (lambda (lat)
+    (scramble-with-reversed-prefix lat '())))
+
+;; some tests
+(scramble '(1 1 1 3 4 2 1 1 9 2))
+(scramble '(1 2 3 4 5 6 7 8 9))
+(scramble '(1 2 3 1 2 3 4 1 8 2 10))
+
+;; yeah! it works
