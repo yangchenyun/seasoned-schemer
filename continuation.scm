@@ -1,5 +1,13 @@
 ;; Try to understand continuation as a language primitive.
 
+;; Questions to be answered:
+;; - How to use continuation to implement common control flows? (as described below).
+;; - How to use continuation to implement generator?
+;; - What's the relationship between CPS (continuation passing style) and continuation?
+;; - How to create/use continuation in Python/javaScript?
+;; - What's the equivalent definition of `call/cc' in Python/javaScript?
+
+
 ;; We can define `any desired sequential control abstraction' (e.g., iteration,
 ;; conditionals, repetition, co-routines, threads, lazy-evaluation, gotos) using
 ;; first-class continuations ([OCWC]). The corollary of this is that
@@ -9,6 +17,29 @@
 
 ;; D.P. Friedman and M. Felleisen. The Seasoned Schemer. MIT Press, Cambridge, MA, 1996.
 ;; [OCWC]	C.T. Haynes, D.P. Friedman and M. Wand. Obtaining Coroutines With Continuations. Computer Languages, 11(3/4), 143-153, 1986.
+
+;; Scheme Manual Definition
+;; http://www.scheme.com/tspl3/further.html#./further:h3
+
+
+(let ((x (call/cc (lambda (k) k)))) ;; step 0: x is bound to current continuation.
+                                    ;; step 2: The procedure in step 1 becomes the value of `call/cc',which is bound to `x' again!
+  (x (lambda (ignore) "hi"))) ;; step 1: continuation is applied with a procedure
+                              ;; step 3: `x` which is bound to the procedure, applied to the procedure.
+
+
+(((call/cc (lambda (k) k)) ;; step 0: `call/cc' returns current continuation;
+                           ;; step 2: `call/cc' returns again with the value from step 1
+                           ;; step 3: apply the (lambda (x) x) with (lambda (x) x)
+  (lambda (x) x)) ;; step 1: the continuation is applied with the procedure (lambda (x) x)
+ "HEY!")          ;; step 4: finally, apply (lambda (x) x) to "HEY!".
+
+(lwp (lambda ()
+       (let f ()
+         (pause)
+         (display "h")
+         (f))))
+
 
 ;; More Resources
 ;; http://community.schemewiki.org/?call-with-current-continuation
@@ -31,6 +62,7 @@
 ;; invoked, *current-continuation* immediately returns from the call to
 ;; `call/cc', and `call/cc' returns whatever value was passed to
 ;; current-continuation.
+
 
 (define (current-continuation)
   (call/cc (lambda (cc) (cc cc))))
