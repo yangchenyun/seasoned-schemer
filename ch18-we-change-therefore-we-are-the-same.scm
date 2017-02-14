@@ -1,0 +1,189 @@
+;; let's play with the list building primitives
+(define kons cons)
+(define kdr cdr)
+(define kar car)
+
+(define kounter)
+(define set-kounter)
+(define konsC
+  (let ((N 0))
+    (set! kounter (lambda () N))
+    (set! set-kounter
+      (lambda (n)
+        (set! N n))) ;; Expose set N
+    (lambda (x y)
+      (set! N (add1 N))
+      (kons x y))))
+
+
+(define (lots n)
+  (if (zero? n) '()
+      (kons
+       'egg
+       (lots (sub1 n)))))
+
+(lots 3)
+(lots 5)
+(lots 12)
+
+(define (lenkth l)
+  (if (null? l)
+      0
+      (add1 (lenkth (kdr l)))))
+
+(lenkth (lots 3))
+(lenkth (lots 5))
+(lenkth (lots 15))
+
+;; Let `lots' add eggs at the end
+(define (add-at-end l)
+  (if (null? (kdr l))
+      (konsC
+       (kar l)
+       (kons 'egg '()))
+      (konsC (kar l)
+            (add-at-end (kdr l)))))
+
+(add-at-end (lots 3))
+(kounter)
+
+;; `add-at-end' is O(n) to the length of the list to built, let try to do better.
+
+(define set-kdr set-cdr!)
+(define (add-at-end-too l)
+  (letrec ((A (lambda (ls)
+                (if (null? (kdr ls))
+                    (set-kdr ls (kons 'egg '()))
+                    (A (kdr ls))))))
+    (A l)
+    l))
+
+(set-kounter 0)
+(add-at-end-too (lots 3))
+(kounter) ;; now, the operation is O(1)
+
+
+;; Approximate `kons'/`kar'/`kdr' with a procedure
+(define kons
+  (lambda (kar kdr)
+    (lambda (selector)
+      (selector kar kdr))))
+
+(define kar
+  (lambda (c)
+    (c (lambda (a d) a))))  ;; select the 1st atom in pair
+
+(define kdr
+  (lambda (c)
+    (c (lambda (a d) d))))  ;; select the 2nd atom in pari
+
+
+;; let's try `bons' which would implement `set-cdr!'
+(define bons
+  (lambda (kar)
+    (let ((kdr '()))
+      (lambda (selector)
+        (selector
+         (lambda (x) (set! kdr x))
+         kar
+         kdr)))))
+
+(define kar
+  (lambda (c)
+    (c (lambda (s a d) a))))
+
+(define kdr
+  (lambda (c)
+    (c (lambda (s a d) d))))
+
+(define set-kdr
+  (lambda (c x)
+    ((c (lambda (s a d) s)) x)))
+
+;; use `set-kdr' and `bons' to define `kons'
+(define kons
+  (lambda (a d)
+    (let ((c (bons a)))
+      (set-kdr c d)
+      c)))
+
+
+;; Now we finished our own shadow version of kons/kar/kdr/set-kdr.
+
+
+;; Inspect the identify of both functions
+
+(define dozen (lots 12)) ;; used 12 kons
+(define bakers-dozen
+  (add-at-end dozen))  ;; used 13 kons
+
+(define bakers-dozen-too
+  (add-at-end-too dozen))  ;; used 1 kons
+
+(lenkth dozen) ;; NOTE: this is still 13, as the `baker-dozen' construct a new list
+
+(define bakers-dozen-again
+  (add-at-end dozen))  ;; used 14 kons now
+
+;; The first 12 kons in `dozen' and `bakers-dozen-too' is the same.
+
+(define (eklist? ls1 ls2)
+  (cond
+   ((null? ls1) (null? ls2))
+   ((null? ls2) #f)
+   (else (and (eq? (kar ls1) (kar ls2))
+              (eklist? (kdr ls1) (kdr ls2))))))
+
+(eklist? bakers-dozen-too bakers-dozen)
+
+;; But from the previous note we know they are different, we must introduce
+;; another concept of 'sameness'.
+;; NOTE: two `kons' are the same, if change one also changes another
+
+(define (same? c1 c2)
+  (let ((t1 (kdr c1))
+        (t2 (kdr c2)))
+    (set-kdr c1 1)
+    (set-kdr c2 2)
+    (let ((v (= (kdr c1) (kdr c2))))
+      (set-kdr c1 t1)
+      (set-kdr c2 t2)
+      v)))
+
+(same? dozen dozen) ;; #t
+(same? dozen bakers-dozen)  ;; #f
+(same? dozen bakers-dozen-too) ;; #t, NOTE: the definition doesn't concern about the VALUE of within a pair
+(same? bakers-dozen-too bakers-dozen) ;; #f, the book is probably wrong
+
+(define (last-kons ls)
+  (if (null? (cdr ls))
+      ls
+      (last-kons (cdr ls))))
+
+(define long (lots 12))
+(set-kdr (last-kons long) long)  ;; This create a cycle
+(set-kdr (last-kons long) (kdr (kdr long)))  ;; still a cycle
+
+;; (lenkth (set-kdr (last-kons long) long))  ;; will be an infinite loop now
+
+;; TODO: Let's try to fix that
+(define (lenkthS l)
+  (let ((A (lambda (ls)
+             (if (null? ls)
+                 0
+                 (if (same? (kdr ls) l)
+                     0
+                     (add1 (A (kdr ls))))))))
+    (A l)))
+
+; Guy's Favorite Pie
+
+;; "a la mode" means "served with ice cream". so the joke is here is having a pie
+;; and ice cream after ice cream
+
+(define mongo
+  (kons (quote pie)
+        (kons (quote a)
+              (kons (quote la)
+                    (kons (quote mode) (quote()))))))
+(set-kdr (kdr (kdr (kdr mongo))) (kdr mongo))
