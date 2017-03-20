@@ -75,13 +75,12 @@
 
 (define kdr
   (lambda (c)
-    (c (lambda (a d) d))))  ;; select the 2nd atom in pari
-
+    (c (lambda (a d) d))))  ;; select the 2nd atom in pair
 
 ;; let's try `bons' which would implement `set-cdr!'
 (define bons
   (lambda (kar)
-    (let ((kdr '()))
+    (let ((kdr '()))  ;; NOTE: Compare with kons, the value could be changed
       (lambda (selector)
         (selector
          (lambda (x) (set! kdr x))
@@ -100,7 +99,8 @@
   (lambda (c x)
     ((c (lambda (s a d) s)) x)))
 
-;; use `set-kdr' and `bons' to define `kons'
+;; use `set-kdr' and `bons' to define `kons', which could be interpreted as:
+;; create a `bons' with its `kdr' set to some value.
 (define kons
   (lambda (a d)
     (let ((c (bons a)))
@@ -120,13 +120,16 @@
 (define bakers-dozen-too
   (add-at-end-too dozen))  ;; used 1 kons
 
-(lenkth dozen) ;; NOTE: this is still 13, as the `baker-dozen' construct a new list
+(lenkth dozen) ;; NOTE: This is 13 because the `baker-dozen' construct a new
+               ;; list but `bakers-dozen-too' modifies the original `dozen'.
 
 (define bakers-dozen-again
   (add-at-end dozen))  ;; used 14 kons now
+(lenkth bakers-dozen-again)
 
 ;; The first 12 kons in `dozen' and `bakers-dozen-too' is the same.
 
+;; One definition of the 'sameness'.
 (define (eklist? ls1 ls2)
   (cond
    ((null? ls1) (null? ls2))
@@ -136,10 +139,9 @@
 
 (eklist? bakers-dozen-too bakers-dozen)
 
-;; But from the previous note we know they are different, we must introduce
-;; another concept of 'sameness'.
-;; NOTE: two `kons' are the same, if change one also changes another
-
+;; NOTE: But from the previous note we know they are different, we must
+;; introduce another concept of 'sameness': two `kons' are the same, iif change
+;; one also changes another
 (define (same? c1 c2)
   (let ((t1 (kdr c1))
         (t2 (kdr c2)))
@@ -156,18 +158,17 @@
 (same? bakers-dozen-too bakers-dozen) ;; #f, the book is probably wrong
 
 (define (last-kons ls)
-  (if (null? (cdr ls))
+  (if (null? (kdr ls))
       ls
-      (last-kons (cdr ls))))
-
+      (last-kons (kdr ls))))
 (define long (lots 12))
 (set-kdr (last-kons long) long)  ;; This create a cycle
-(set-kdr (last-kons long) (kdr (kdr long)))  ;; still a cycle
 
+;; (set-kdr (last-kons long) (kdr (kdr long)))  ;; infinite loop with a cycle,
 ;; (lenkth (set-kdr (last-kons long) long))  ;; will be an infinite loop now
 
 ;; TODO: Let's try to fix that
-(define (lenkthS l)
+(define (finite-lenkth l)
   (let ((A (lambda (ls)
              (if (null? ls)
                  0
