@@ -167,15 +167,36 @@
 ;; (set-kdr (last-kons long) (kdr (kdr long)))  ;; infinite loop with a cycle,
 ;; (lenkth (set-kdr (last-kons long) long))  ;; will be an infinite loop now
 
-;; TODO: Let's try to fix that
+;; A non-functional procedure may use a hash table to store 'seen' node and
+;; detect the cycle. How to do that in a functional way - without using a state?
+
+;; egg->egg->egg->egg
+;;       ^         |
+;;       |---------<
+
+;; The idea is to use Floyd's Tortoise and hare algorithm: keep two pointers in
+;; the list.
+
+;; TODO: An interesting problem, how to implement the Floyd's algorithm in a
+;; functional way to return mu + lambda.
+
 (define (finite-lenkth l)
-  (let ((A (lambda (ls)
-             (if (null? ls)
-                 0
-                 (if (same? (kdr ls) l)
-                     0
-                     (add1 (A (kdr ls))))))))
-    (A l)))
+  (call/cc
+   (lambda (infinite)
+     (letrec ((L (lambda (p q)
+                (cond
+                 ((same? p q) (infinite #f))
+                 ;; because 'hare' forwards by 2, there are two terminal cases
+                 ((null? q) 0)
+                 ((null? (kdr q)) 1)
+                 (else
+                  ;; use the 'hare' pointer for natural recursion
+                  (+ 2 (L (kdr p) (kdr (kdr q)))))))))
+       (if (null? l) 0
+           (add1 (L l (kdr l))))))))
+
+(finite-lenkth (lots 12))
+(finite-lenkth long)
 
 ; Guy's Favorite Pie
 
